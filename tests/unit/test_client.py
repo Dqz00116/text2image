@@ -18,7 +18,7 @@ class TestBuildMessages:
         assert msg[0]["content"] == "a beautiful sunset"
 
     def test_text_with_image_url(self, client):
-        msg = client._build_messages("make it darker", "https://example.com/cat.png")
+        msg = client._build_messages("make it darker", ["https://example.com/cat.png"])
         content = msg[0]["content"]
         assert isinstance(content, list)
         assert content[0] == {"type": "text", "text": "make it darker"}
@@ -27,12 +27,29 @@ class TestBuildMessages:
     def test_text_with_local_image(self, client, tmp_path):
         img = tmp_path / "cat.jpg"
         img.write_bytes(b"x")
-        msg = client._build_messages("make it darker", str(img))
+        msg = client._build_messages("make it darker", [str(img)])
         assert msg[0]["content"][1]["image_url"]["url"].startswith("data:image/jpeg;base64,")
 
     def test_text_with_local_image_not_found(self, client):
         with pytest.raises(FileNotFoundError):
-            client._build_messages("make it darker", "/nonexistent/img.png")
+            client._build_messages("make it darker", ["/nonexistent/img.png"])
+
+    def test_multiple_images(self, client, tmp_path):
+        img1 = tmp_path / "a.jpg"
+        img2 = tmp_path / "b.png"
+        img1.write_bytes(b"x")
+        img2.write_bytes(b"y")
+        msg = client._build_messages("combine", [
+            "https://example.com/ref.jpg",
+            str(img1),
+            str(img2),
+        ])
+        content = msg[0]["content"]
+        assert len(content) == 4  # text + 3 images
+        assert content[0] == {"type": "text", "text": "combine"}
+        assert content[1] == {"type": "image_url", "image_url": {"url": "https://example.com/ref.jpg"}}
+        assert content[2]["image_url"]["url"].startswith("data:image/jpeg;base64,")
+        assert content[3]["image_url"]["url"].startswith("data:image/png;base64,")
 
 
 class TestExtraBody:

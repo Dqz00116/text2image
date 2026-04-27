@@ -22,19 +22,19 @@ class TextToImageClient:
         self.model = model
         self._client = OpenAI(base_url=base_url, api_key=api_key)
 
-    def _build_messages(self, prompt: str, image_path: str | None = None) -> list[dict]:
-        if image_path is None:
+    def _build_messages(self, prompt: str, image_paths: list[str] | None = None) -> list[dict]:
+        if not image_paths:
             return [{"role": "user", "content": prompt}]
 
-        if image_path.startswith(("http://", "https://")):
-            image_url = image_path
-        else:
-            image_url = encode_image_to_data_url(image_path)
+        content = [{"type": "text", "text": prompt}]
+        for path in image_paths:
+            if path.startswith(("http://", "https://")):
+                image_url = path
+            else:
+                image_url = encode_image_to_data_url(path)
+            content.append({"type": "image_url", "image_url": {"url": image_url}})
 
-        return [{"role": "user", "content": [
-            {"type": "text", "text": prompt},
-            {"type": "image_url", "image_url": {"url": image_url}},
-        ]}]
+        return [{"role": "user", "content": content}]
 
     def _build_extra_body(self, aspect_ratio: str, image_size: str) -> dict:
         body: dict = {"modalities": ["image", "text"]}
@@ -54,10 +54,10 @@ class TextToImageClient:
             extra_body=extra_body,
         )
 
-    def generate(self, prompt: str, image_path: str | None = None,
+    def generate(self, prompt: str, image_paths: list[str] | None = None,
                  aspect_ratio: str = DEFAULT_ASPECT_RATIO,
                  image_size: str = DEFAULT_IMAGE_SIZE) -> GenerationResult:
-        messages = self._build_messages(prompt, image_path)
+        messages = self._build_messages(prompt, image_paths)
         extra_body = self._build_extra_body(aspect_ratio, image_size)
         response = self._api_call(messages, extra_body)
         choice = response.choices[0]

@@ -12,7 +12,7 @@ IMAGE_SIZES = ["1K", "2K", "4K"]
 
 @click.command()
 @click.option("--prompt", "-p", required=True, help="Text prompt for image generation")
-@click.option("--image", "-i", default=None, help="Input image path (local file or HTTP URL)")
+@click.option("--image", "-i", multiple=True, help="Input image path (local file or HTTP URL). Repeat for multiple images.")
 @click.option("--output", "-o", default="output.png", show_default=True, help="Output image file path")
 @click.option("--model", default="openai/gpt-5.4-image-2", show_default=True, help="Model ID")
 @click.option("--aspect-ratio", default="1:1", show_default=True,
@@ -26,6 +26,7 @@ def main(prompt, image, output, model, aspect_ratio, image_size, api_key, api_ba
     """Generate images using OpenRouter's GPT-5.4 Image 2 model.
 
     Supports text-to-image and image+text-to-image generation.
+    Use -i multiple times for multiple input images.
 
     API key priority: --api-key > OPENROUTER_API_KEY env var > .env file
     """
@@ -36,16 +37,18 @@ def main(prompt, image, output, model, aspect_ratio, image_size, api_key, api_ba
         click.echo("Error: API key required. Use --api-key, OPENROUTER_API_KEY env var, or .env file.", err=True)
         sys.exit(1)
 
+    image_paths = list(image) if image else None
+
     click.echo(f"Generating image for prompt: {prompt}")
-    if image:
-        click.echo(f"Input image: {image}")
+    if image_paths:
+        click.echo(f"Input images: {len(image_paths)}")
 
     client = TextToImageClient(api_key=api_key, base_url=api_base, model=model)
 
     try:
         result = client.generate(
             prompt=prompt,
-            image_path=image,
+            image_paths=image_paths,
             aspect_ratio=aspect_ratio,
             image_size=image_size,
         )
